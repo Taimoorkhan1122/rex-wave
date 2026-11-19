@@ -50,4 +50,20 @@ DRY=1 close_window "$RUN/T310.builder.json" "$RUN/b.closed" >/dev/null
 # tab_no with empty id returns 0 silently
 eq "$(tab_no "")" "" "tab_no empty id"
 
+# dirty_of: needs a real git repo at $WT_ROOT/T310 (as a worktree would be); skips if git missing
+if command -v git >/dev/null; then
+  WT_ROOT=${WT_ROOT:-}; WT_ROOT_SAVE=$WT_ROOT
+  g=$(mktemp -d "${TMPDIR:-/tmp}/rex-wave-dirty.XXXXXX")
+  WT_ROOT=$g; mkdir -p "$(wt_of T310)"
+  git -C "$(wt_of T310)" init -q && git -C "$(wt_of T310)" -c user.email=t@t -c user.name=t commit -qm init --allow-empty
+  eq "$(dirty_of T310)" 0 "dirty_of clean worktree"
+  echo stray > "$(wt_of T310)/stray.txt"
+  eq "$(dirty_of T310)" 1 "dirty_of counts untracked"
+  echo rep > "$(wt_of T310)/REPORT-AGENT.md"
+  eq "$(dirty_of T310)" 1 "dirty_of still counts other files with report present"
+  git -C "$(wt_of T310)" add stray.txt; git -C "$(wt_of T310)" -c user.email=t@t -c user.name=t commit -qm stray
+  eq "$(dirty_of T310)" 0 "dirty_of clean after commit"
+  rm -rf "$g"; WT_ROOT=$WT_ROOT_SAVE
+fi
+
 [ "$fails" = 0 ] && printf 'selfcheck: all passed\n' || { printf 'selfcheck: %d failure(s)\n' "$fails" >&2; exit 1; }
