@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+      - name: Syntax check all scripts
+        run: |
+          cd scripts
+          for f in *.sh; do sh -n "$f"; done
+      - name: shellcheck (warnings max, exclude SC1090 sourced-file false positives)
+        run: shellcheck -S warning --exclude=SC1090 scripts/*.sh || true
+
+  selfcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run state-machine selfcheck
+        run: sh scripts/selfcheck.sh
