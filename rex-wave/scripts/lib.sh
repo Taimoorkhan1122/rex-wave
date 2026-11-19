@@ -15,6 +15,8 @@ load_env() {
 is_task() { for _x in $TASKS; do [ "$_x" = "$1" ] && return 0; done; return 1; }
 wt_of() { printf '%s/%s\n' "$WT_ROOT" "$1"; }
 head_of() { git -C "$(wt_of "$1")" rev-parse HEAD 2>/dev/null; }
+# dirty_of <task>: uncommitted files (REPORT-AGENT.md excluded, it is never committed)
+dirty_of() { git -C "$(wt_of "$1")" status --porcelain -- ':!REPORT-AGENT.md' 2>/dev/null | wc -l | tr -d ' '; }
 json_field() { jq -r "$2" "$1" 2>/dev/null; }
 builder_win() { json_field "$RUN/$1.builder.json" '.window_id'; }
 builder_blk() { json_field "$RUN/$1.builder.json" '.block_ids[0]'; }

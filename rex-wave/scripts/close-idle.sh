@@ -26,6 +26,8 @@ for t in $TASKS; do
     cur=$(head_of "$t")
     [ -n "$cur" ] && [ "$cur" != "$(cat "$RUN/$t.reviewed-head")" ] && continue
   fi
+  # uncommitted changes: closing the tab orphans them; leave the tab open
+  [ "$(dirty_of "$t")" = 0 ] || continue
   close_window "$RUN/$t.builder.json" "$RUN/$t.builder.closed"
 done
 if [ "$DRY" = 1 ]; then printf 'close-idle: dry run done\n'; else printf 'close-idle: done\n'; fi

@@ -10,7 +10,7 @@ for t in $TASKS; do
   wt=$(wt_of "$t")
   if [ ! -d "$wt" ]; then printf '%-24s missing worktree\n' "$t"; continue; fi
   commits=$(git -C "$wt" rev-list --count "$BASE_SHA..HEAD" 2>/dev/null || printf '?')
-  dirty=$(git -C "$wt" status --porcelain -- ':!REPORT-AGENT.md' 2>/dev/null | wc -l | tr -d ' ')
+  dirty=$(dirty_of "$t")
   if [ -f "$wt/REPORT-AGENT.md" ]; then report=yes; else report=no; fi
   if [ -f "$RUN/$t.fixprev" ]; then fix=sent
   elif [ -f "$RUN/$t.fix.md" ]; then fix=drafted
