@@ -54,7 +54,7 @@ Shorthand below: `S` = that scripts directory, `RUN` = `$TMPDIR/rex-wave-<label>
 
 ## Gotchas
 
-- Changed anything in `lib.sh` or the verdict/state logic? Run `sh S/selfcheck.sh` first — it checks verdict parsing, review states, and json reads without needing rex.
+- Changed anything in `lib.sh` or the verdict/state logic? Run `sh S/selfcheck.sh` first — it checks verdict parsing, review states, and json reads without needing rex. For the behavioral suite, `sh e2e/run.sh` (docs/CLAIMS.md maps every documented claim to its test).
 - `commandcode -p` (headless) prints nothing until exit and silently refuses edits without a permission mode. Use the interactive form with `-t --yolo`, as `run-agent.sh` does. (commandcode-specific; the other agents' profiles in `lib.sh` carry their own flags.)
 - The process name is `command-code`, not `commandcode`. Use `pgrep -f command-code`. (commandcode builders only.)
 - A PreToolUse hook blocks any Bash command whose text contains vitest or jest without a memory guard. Write briefs and fix files with the Write tool, not heredocs. Keep the guard in `TEST_CMD`.

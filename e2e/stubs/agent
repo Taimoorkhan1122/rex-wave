@@ -1,0 +1,33 @@
+#!/bin/sh
+# e2e stub: fake agent CLI (one file, symlinked as commandcode/claude/codex/opencode).
+# Logs its full argv to $REX_STUB_STATE/log. Builder mode: exits 0.
+# Reviewer mode (-p / --auto / codex exec / opencode run): emits verdict.
+set -u
+ST=${REX_STUB_STATE:?REX_STUB_STATE unset}
+mkdir -p "$ST"
+me=$(basename "$0")
+line=$me
+for a in "$@"; do line="$line [$a]"; done
+printf '%s\n' "$line" >> "$ST/log"
+
+is_reviewer=0
+for a in "$@"; do
+  case $a in -p|--auto) is_reviewer=1 ;; esac
+done
+[ "$me" = codex ] && case " $* " in *" exec "*) is_reviewer=1 ;; esac
+[ "$me" = opencode ] && { [ "${1:-}" = run ] || exit 0; }
+
+out=""
+prev=""
+for a in "$@"; do
+  [ "$prev" = "--output-last-message" ] && out=$a
+  prev=$a
+done
+body='VERDICT: APPROVE'
+[ -f "$ST/verdict" ] && body=$(cat "$ST/verdict")
+if [ "$me" = codex ] && [ -n "$out" ]; then
+  printf '%s\nREVIEW EXIT\n' "$body" > "$out"
+else
+  printf '%s\n' "$body"
+fi
+exit 0

@@ -90,15 +90,18 @@ Profiles for each CLI (interactive builder invocation, non-interactive reviewer 
 
 - **No merge, push, PR, or deploy by any agent** — enforced by prompt rules in every brief and by script guards.
 - **Per-task file ownership** — briefs list files other tasks own; reviewers flag violations.
-- **Allowlisted models** — the manifest refuses unlisted models.
+- **Allowlisted agents** — the manifest refuses unknown agent names and CLIs not on `PATH`; model ids are whatever the chosen CLI accepts.
 - **Fail-safe teardown** — `finish.sh` verifies merge status (`git merge-base --is-ancestor`) and clean worktrees before removing anything; one blocked task aborts everything.
 - **Nothing destructive runs unasked** — `close-idle.sh` and `finish.sh` both have `--dry-run`.
 
 ## Testing
 
 ```sh
-sh scripts/selfcheck.sh   # 19 asserts on the state machine; no rex needed
+sh scripts/selfcheck.sh   # 24 asserts on the state machine; no rex needed
+sh e2e/run.sh             # 44 behavioral asserts: stub agents + hermetic fake rex, no network
 ```
+
+Every claim in this README and SKILL.md is mapped to the test that backs it in [docs/CLAIMS.md](docs/CLAIMS.md).
 
 ## License
 

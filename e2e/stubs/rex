@@ -1,0 +1,28 @@
+#!/bin/sh
+# e2e stub: fake rex CLI. State (window registry, logs) lives in $REX_STUB_STATE.
+set -u
+ST=${REX_STUB_STATE:?REX_STUB_STATE unset}
+mkdir -p "$ST"
+cmd=${1:-}; [ $# -gt 0 ] && shift
+case $cmd in
+  session) exit 0 ;;
+  window)
+    sub=${1:-}; [ $# -gt 0 ] && shift
+    case $sub in
+      new)
+        n=$(cat "$ST/n" 2>/dev/null || echo 0); n=$((n+1)); printf '%s\n' "$n" > "$ST/n"
+        printf 'window-new %s\n' "$*" >> "$ST/log"
+        printf '{"window_id":"w%s","block_ids":["b%s"]}\n' "$n" "$n" ;;
+      ls)
+        n=$(cat "$ST/n" 2>/dev/null || echo 0)
+        i=1; while [ $i -le $n ]; do printf 'w%s\n' "$i"; i=$((i+1)); done ;;
+      close)
+        printf 'close %s\n' "$1" >> "$ST/log"; printf '%s\n' "$1" >> "$ST/closed" ;;
+      *) exit 0 ;;
+    esac ;;
+  capture) [ -f "$ST/capture" ] && cat "$ST/capture" ;;
+  send) printf 'send %s\n' "$*" >> "$ST/log" ;;
+  send-key) printf 'send-key %s\n' "$*" >> "$ST/log" ;;
+  *) exit 0 ;;
+esac
+exit 0
