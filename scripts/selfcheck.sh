@@ -50,6 +50,13 @@ DRY=1 close_window "$RUN/T310.builder.json" "$RUN/b.closed" >/dev/null
 # tab_no with empty id returns 0 silently
 eq "$(tab_no "")" "" "tab_no empty id"
 
+# agent_cli: known profiles resolve, unknown rejected
+eq "$(agent_cli commandcode)" "commandcode" "agent_cli commandcode"
+eq "$(agent_cli claude)" "claude" "agent_cli claude"
+eq "$(agent_cli codex)" "codex" "agent_cli codex"
+eq "$(agent_cli opencode)" "opencode" "agent_cli opencode"
+eq "$(agent_cli cursor-cli && echo y || echo n)" n "agent_cli rejects unknown"
+
 # dirty_of: needs a real git repo at $WT_ROOT/T310 (as a worktree would be); skips if git missing
 if command -v git >/dev/null; then
   WT_ROOT=${WT_ROOT:-}; WT_ROOT_SAVE=$WT_ROOT

@@ -16,5 +16,4 @@ Do NOT edit files, commit, or run tests. Output findings only, one line each in 
 --- BRIEF ---
 $(cat "$RUN/$t.md")"
 
-opencode run --agent cavecrew-reviewer -m "$REVIEW_MODEL" --auto --title "review-$t" "$prompt" 2>&1 | tee "$RUN/$t.review.md"
-printf 'REVIEW EXIT\n' >> "$RUN/$t.review.md"
+reviewer_run "$REVIEW_AGENT" "$REVIEW_MODEL" "review-$t" "$prompt" "$RUN/$t.review.md"

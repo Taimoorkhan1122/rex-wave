@@ -17,11 +17,17 @@ man=${1:?usage: init-wave.sh <manifest.env>}
 : "${TEST_CMD:?manifest needs TEST_CMD}"
 : "${REVIEW_FOCUS:?manifest needs REVIEW_FOCUS}"
 : "${REX_SESSION:?run inside a Rex terminal (REX_SESSION unset)}"
+BUILDER_AGENT=${BUILDER_AGENT:-commandcode}
+REVIEW_AGENT=${REVIEW_AGENT:-opencode}
 WT_ROOT=${WT_ROOT:-$REPO-worktrees}
 
 printf '%s\n' "$LABEL" | grep -qxE '[A-Za-z0-9][A-Za-z0-9._-]*' || die "bad LABEL: $LABEL"
-printf '%s\n' "$BUILDER_MODEL" | grep -qxE 'deepseek/deepseek-v4\.1-flash|z-ai/glm-5\.3-flash' || die "BUILDER_MODEL not in allowlist: $BUILDER_MODEL"
-printf '%s\n' "$REVIEW_MODEL" | grep -qxE 'opencode/deepseek-v4\.1-flash-free' || die "REVIEW_MODEL not in allowlist: $REVIEW_MODEL"
+agent_cli "$BUILDER_AGENT" >/dev/null || die "BUILDER_AGENT not in allowlist: $BUILDER_AGENT (commandcode | claude | codex | opencode)"
+agent_cli "$REVIEW_AGENT" >/dev/null || die "REVIEW_AGENT not in allowlist: $REVIEW_AGENT (opencode | claude | codex | commandcode)"
+: "${BUILDER_MODEL:?manifest needs BUILDER_MODEL for agent $BUILDER_AGENT}"
+: "${REVIEW_MODEL:?manifest needs REVIEW_MODEL for agent $REVIEW_AGENT}"
+command -v "$(agent_cli "$BUILDER_AGENT")" >/dev/null || die "builder CLI not on PATH: $(agent_cli "$BUILDER_AGENT")"
+command -v "$(agent_cli "$REVIEW_AGENT")" >/dev/null || die "reviewer CLI not on PATH: $(agent_cli "$REVIEW_AGENT")"
 rex session inspect "$REX_SESSION" --json >/dev/null 2>&1 || die "Rex session not reachable: $REX_SESSION"
 BASE_SHA=$(git -C "$REPO" rev-parse "$BASE^{commit}" 2>/dev/null) || die "BASE does not resolve in $REPO: $BASE"
 
@@ -46,6 +52,8 @@ cp "$man" "$RUN/wave.env" || die "cannot write wave.env"
   printf 'WT_ROOT=%s\n' "$WT_ROOT"
   printf 'BASE_SHA=%s\n' "$BASE_SHA"
   printf 'RUN=%s\n' "$RUN"
+  printf 'BUILDER_AGENT=%s\n' "$BUILDER_AGENT"
+  printf 'REVIEW_AGENT=%s\n' "$REVIEW_AGENT"
 } >> "$RUN/wave.env"
 
 esc() { printf '%s' "$1" | sed -e 's/[\\/&|]/\\&/g'; }
@@ -68,6 +76,8 @@ done
 
 printf 'run dir:   %s\n' "$RUN"
 printf 'base:      %s (%s)\n' "$BASE" "$BASE_SHA"
+printf 'builder:   %s (%s)\n' "$BUILDER_AGENT" "$BUILDER_MODEL"
+printf 'reviewer:  %s (%s)\n' "$REVIEW_AGENT" "$REVIEW_MODEL"
 for t in $TASKS; do printf 'worktree:  %s (branch fix/%s)\n' "$(wt_of "$t")" "$t"; done
 [ -n "$stubs" ] && printf 'briefs still TODO (write with Write tool):%s\n' "$stubs"
 printf 'next: write each brief, then sh %s/launch.sh %s <task>\n' "$here" "$RUN"

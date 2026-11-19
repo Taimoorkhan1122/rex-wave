@@ -2,7 +2,7 @@
 
 Fan independent coding tasks out to parallel AI agents in [Rex](https://superlogical.rex) — each with its own git worktree, a visible terminal tab you can watch live, and an automated review pass. One fix round, a second review, then you merge. Nothing ever merges, pushes, or deploys on its own.
 
-Works with [commandcode](https://commandcode.dev) builders and [opencode](https://opencode.ai) reviewers.
+Builders: **commandcode**, **Claude Code** (`claude`), **Codex CLI** (`codex`), **opencode** — chosen per wave in the manifest. Reviewers: **opencode**, Claude Code, Codex, or commandcode, same way.
 
 ## How it works
 
@@ -48,7 +48,7 @@ Copy (or symlink) the skill into your skills directory:
 git clone https://github.com/Taimoorkhan1122/rex-wave.git ~/.claude/skills/rex-wave
 ```
 
-Scripts resolve their own directory, so any install location works. Requires: `sh`, `git`, `jq`, the `rex` CLI (with `REX_SESSION` set), `commandcode`, and `opencode`.
+Scripts resolve their own directory, so any install location works. Requires: `sh`, `git`, `jq`, the `rex` CLI (with `REX_SESSION` set), and at least one agent CLI — `commandcode`, `claude`, `codex`, or `opencode` — for builders and reviewers.
 
 ## Quick start
 
@@ -73,14 +73,18 @@ sh scripts/finish.sh "$TMPDIR/rex-wave-mylabel" --dry-run
 sh scripts/finish.sh "$TMPDIR/rex-wave-mylabel"
 ```
 
-## Models
+## Agents and models
 
-Builders and reviewers are allowlisted in the manifest — swap in your own in `templates/wave.env.example` and `scripts/init-wave.sh`:
+The manifest picks the CLI and model per role. `init-wave.sh` validates the agent name and that its CLI is on `PATH`:
 
-| Role | Default |
+| Setting | Values |
 |---|---|
-| Builder | `deepseek/deepseek-v4.1-flash`, `z-ai/glm-5.3-flash` |
-| Reviewer | `opencode/deepseek-v4.1-flash-free` (cavecrew-reviewer) |
+| `BUILDER_AGENT` | `commandcode` (default) \| `claude` \| `codex` \| `opencode` |
+| `BUILDER_MODEL` | any model id the chosen CLI accepts |
+| `REVIEW_AGENT` | `opencode` (default) \| `claude` \| `codex` \| `commandcode` |
+| `REVIEW_MODEL` | any model id the chosen CLI accepts |
+
+Profiles for each CLI (interactive builder invocation, non-interactive reviewer invocation, output capture) live in `lib.sh` — `builder_run` and `reviewer_run`. Adding a new agent is one `case` branch in each.
 
 ## Safety model
 

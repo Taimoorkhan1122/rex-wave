@@ -19,5 +19,4 @@ $(cat "$RUN/$t.fix.md")
 --- ROUND-1 REVIEW ---
 $(cat "$RUN/$t.review.md")"
 
-opencode run --agent cavecrew-reviewer -m "$REVIEW_MODEL" --auto --title "review2-$t" "$prompt" 2>&1 | tee "$RUN/$t.review2.md"
-printf 'REVIEW EXIT\n' >> "$RUN/$t.review2.md"
+reviewer_run "$REVIEW_AGENT" "$REVIEW_MODEL" "review2-$t" "$prompt" "$RUN/$t.review2.md"

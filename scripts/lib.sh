@@ -21,6 +21,42 @@ json_field() { jq -r "$2" "$1" 2>/dev/null; }
 builder_win() { json_field "$RUN/$1.builder.json" '.window_id'; }
 builder_blk() { json_field "$RUN/$1.builder.json" '.block_ids[0]'; }
 
+# agent_cli <agent>: the binary name a profile runs; empty if unknown
+agent_cli() {
+  case $1 in
+    commandcode) printf 'commandcode' ;;
+    claude)      printf 'claude' ;;
+    codex)       printf 'codex' ;;
+    opencode)    printf 'opencode' ;;
+    *) return 1 ;;
+  esac
+}
+
+# builder_run <agent> <model> <task> <prompt-file>: interactive builder invocation (builder tab)
+builder_run() {
+  _a=$1; _m=$2; _t=$3; _f=$4
+  case $_a in
+    commandcode) exec commandcode "$(cat "$_f")" -t --yolo --skip-onboarding -m "$_m" -n "$_t" ;;
+    claude)      exec claude "$(cat "$_f")" --permission-mode acceptEdits --dangerously-skip-permissions --model "$_m" ;;
+    codex)       exec codex "$(cat "$_f")" --full-auto -m "$_m" -c model_reasoning_effort=high ;;
+    opencode)    exec opencode run --format TUI -m "$_m" "$(cat "$_f")" ;;
+    *) die "unknown builder agent: $_a" ;;
+  esac
+}
+
+# reviewer_run <agent> <model> <title> <prompt> <outfile>: non-interactive reviewer invocation, output to outfile
+reviewer_run() {
+  _a=$1; _m=$2; _title=$3; _p=$4; _out=$5
+  case $_a in
+    opencode) exec opencode run --agent cavecrew-reviewer -m "$_m" --auto --title "$_title" "$_p" 2>&1 | tee "$_out" ;;
+    claude)   exec claude -p "$_p" --model "$_m" --output-format text 2>&1 | tee "$_out" ;;
+    codex)    codex exec --full-auto -m "$_m" --output-last-message "$_out" "$_p" >/dev/null 2>&1 ;;
+    commandcode) exec commandcode -p "$_p" -m "$_m" 2>&1 | tee "$_out" ;;
+    *) die "unknown reviewer agent: $_a" ;;
+  esac
+  printf 'REVIEW EXIT\n' >> "$_out"
+}
+
 # open_tab <label> <cwd> <json-out> <cmd> [args...]: background tab in $REX_SESSION; saves window JSON on success
 open_tab() {
   _label=$1; _cwd=$2; _out=$3; shift 3
