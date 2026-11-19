@@ -1,0 +1,101 @@
+# rex-wave
+
+Fan independent coding tasks out to parallel AI agents in [Rex](https://superlogical.rex) — each with its own git worktree, a visible terminal tab you can watch live, and an automated review pass. One fix round, a second review, then you merge. Nothing ever merges, pushes, or deploys on its own.
+
+Works with [commandcode](https://commandcode.dev) builders and [opencode](https://opencode.ai) reviewers.
+
+## How it works
+
+```mermaid
+flowchart LR
+    M[wave manifest] --> I[init-wave.sh]
+    I --> W1[worktree + branch fix/task]
+    I --> B[brief.md per task]
+    B --> L[launch.sh]
+    L --> T1[builder tab 1]
+    L --> T2[builder tab N]
+    T1 --> R1[reviewer tab]
+    T2 --> R2[reviewer tab]
+    R1 -- CHANGES REQUESTED --> F[fix round]
+    F --> R3[round-2 reviewer]
+    R1 -- APPROVE --> U[you merge]
+    R3 -- APPROVE --> U
+    U --> FI[finish.sh teardown]
+```
+
+1. **Init** — write a manifest (tasks, base branch, model allowlist, test commands). `init-wave.sh` creates one git worktree per task on `fix/<task>`, a run dir, and brief stubs.
+2. **Brief** — fill each task brief: goal, owned files, other tasks' files (so parallel work never collides).
+3. **Launch** — `launch.sh` opens a visible Rex tab per builder running commandcode with `--yolo` scoped to that worktree.
+4. **Review** — a background watcher opens an opencode reviewer tab per finished builder; verdicts land as `VERDICT: APPROVE` or `CHANGES REQUESTED`.
+5. **Fix** — paste review findings into a fix brief; `send-fix.sh` delivers it to the idle builder; a round-2 reviewer verifies each finding was fixed.
+6. **Merge** — you review and merge. The skill never does.
+7. **Teardown** — `finish.sh` removes worktrees and merged branches, closes tabs, deletes the run dir. Refuses anything not yet merged or uncommitted.
+
+## Why
+
+Running several agents on one checkout means merge conflicts, shared test runs, and no isolation. rex-wave gives every agent:
+
+- **its own git worktree** — no cross-contamination, no lock contention
+- **file ownership in the brief** — overlapping files are named and forbidden per task
+- **a deterministic review gate** — verdicts are parsed from review output, not guessed
+- **fail-safe lifecycle** — every script refuses to overwrite, double-launch, or close a working agent; teardown only removes verified-merged work
+
+## Install
+
+Copy (or symlink) the skill into your skills directory:
+
+```sh
+git clone https://github.com/Taimoorkhan1122/rex-wave.git ~/.claude/skills/rex-wave
+```
+
+Scripts resolve their own directory, so any install location works. Requires: `sh`, `git`, `jq`, the `rex` CLI (with `REX_SESSION` set), `commandcode`, and `opencode`.
+
+## Quick start
+
+```sh
+# from inside a Rex terminal tab
+echo "$REX_SESSION"                     # must be set
+
+# write a manifest from templates/wave.env.example, then:
+sh scripts/init-wave.sh "$TMPDIR/rex-wave-mylabel.env"
+
+# fill briefs (Write tool), then per task:
+sh scripts/launch.sh "$TMPDIR/rex-wave-mylabel" T310
+
+# background watcher opens reviewer tabs as builders finish:
+sh scripts/watch-review.sh "$TMPDIR/rex-wave-mylabel" &
+
+# check on everything:
+sh scripts/status.sh "$TMPDIR/rex-wave-mylabel"
+
+# after you merge:
+sh scripts/finish.sh "$TMPDIR/rex-wave-mylabel" --dry-run
+sh scripts/finish.sh "$TMPDIR/rex-wave-mylabel"
+```
+
+## Models
+
+Builders and reviewers are allowlisted in the manifest — swap in your own in `templates/wave.env.example` and `scripts/init-wave.sh`:
+
+| Role | Default |
+|---|---|
+| Builder | `deepseek/deepseek-v4.1-flash`, `z-ai/glm-5.3-flash` |
+| Reviewer | `opencode/deepseek-v4.1-flash-free` (cavecrew-reviewer) |
+
+## Safety model
+
+- **No merge, push, PR, or deploy by any agent** — enforced by prompt rules in every brief and by script guards.
+- **Per-task file ownership** — briefs list files other tasks own; reviewers flag violations.
+- **Allowlisted models** — the manifest refuses unlisted models.
+- **Fail-safe teardown** — `finish.sh` verifies merge status (`git merge-base --is-ancestor`) and clean worktrees before removing anything; one blocked task aborts everything.
+- **Nothing destructive runs unasked** — `close-idle.sh` and `finish.sh` both have `--dry-run`.
+
+## Testing
+
+```sh
+sh scripts/selfcheck.sh   # 19 asserts on the state machine; no rex needed
+```
+
+## License
+
+[MIT](LICENSE)
