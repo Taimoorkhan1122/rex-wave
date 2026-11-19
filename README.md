@@ -65,6 +65,9 @@ sh scripts/launch.sh "$TMPDIR/rex-wave-mylabel" T310
 # background watcher opens reviewer tabs as builders finish:
 sh scripts/watch-review.sh "$TMPDIR/rex-wave-mylabel" &
 
+# get pinged in this terminal as each task becomes reviewable:
+sh scripts/watch-done.sh "$TMPDIR/rex-wave-mylabel" &
+
 # check on everything:
 sh scripts/status.sh "$TMPDIR/rex-wave-mylabel"
 

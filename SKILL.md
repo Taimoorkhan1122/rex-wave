@@ -32,7 +32,7 @@ Shorthand below: `S` = that scripts directory, `RUN` = `$TMPDIR/rex-wave-<label>
 
 8. Launch each builder: `sh S/launch.sh RUN <task>`. It prints the tab number. Tell the user the tab numbers. Rex Remote Control is off by default, so you cannot switch their view.
 9. Start the review watcher in the background (Bash `run_in_background`): `sh S/watch-review.sh RUN`. It opens a reviewer tab per task once `REPORT-AGENT.md` exists and HEAD is past `BASE_SHA`. It exits when every task has a reviewer tab, or gives up after `MAX_WAIT` seconds (default 4h) naming the tasks whose builder never finished.
-10. Check progress with `sh S/status.sh RUN`. Report each verdict to the user as it lands.
+10. Optionally start a done-pinger in the same background job style: `sh S/watch-done.sh RUN`. Run it from the block that wants to hear about completions — it prints `T1 is reviewable` plus a bell and a desktop-notification escape for each task the moment its condition (REPORT-AGENT.md + HEAD past BASE_SHA, same as watch-review) is met, then exits when all tasks are reviewable. `MAX_WAIT` (default 4h) bounds it.
 11. Stop at merge-ready. The user reviews branches `fix/<task>` and merges them.
 
 ## Fix round (only on CHANGES REQUESTED)
