@@ -140,7 +140,7 @@ sh "$root/scripts/launch.sh" "$r" T2 >/dev/null 2>&1
 fake_done "$r" T1
 MAX_WAIT=3 sh "$root/scripts/watch-review.sh" "$r" >/dev/null 2>&1 &
 wpid=$!
-i=0; while [ $i -lt 20 ] && [ ! -f "$r/T1.reviewer.json" ]; do sleep 0.2; i=$((i+1)); done
+i=0; while [ $i -lt 40 ] && [ ! -f "$r/T1.reviewer.json" ]; do /bin/sleep 0.1; i=$((i+1)); done
 [ -f "$r/T1.reviewer.json" ] && ok "watch-review: opens tab on done signal" || fail "watch-review: opens tab on done signal"
 [ -f "$r/T1.reviewed-head" ] && ok "watch-review: records reviewed-head" || fail "watch-review: records reviewed-head"
 kill "$wpid" 2>/dev/null; wait "$wpid" 2>/dev/null
@@ -170,7 +170,7 @@ git -C "$wt1" commit -q --allow-empty -m fix1
 git -C "$wt1" rev-parse HEAD~1 > "$r/T1.fixprev"
 MAX_WAIT=3 sh "$root/scripts/watch-fix.sh" "$r" >/dev/null 2>&1 &
 wpid=$!
-i=0; while [ $i -lt 20 ] && [ ! -f "$r/T1.reviewer2.json" ]; do sleep 0.2; i=$((i+1)); done
+i=0; while [ $i -lt 40 ] && [ ! -f "$r/T1.reviewer2.json" ]; do /bin/sleep 0.1; i=$((i+1)); done
 [ -f "$r/T1.reviewer2.json" ] && ok "watch-fix: opens round-2 tab" || fail "watch-fix: opens round-2 tab"
 kill "$wpid" 2>/dev/null; wait "$wpid" 2>/dev/null
 rm -rf "$r" "$repo" "${repo}-worktrees"
