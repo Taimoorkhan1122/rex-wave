@@ -57,6 +57,17 @@ eq "$(agent_cli codex)" "codex" "agent_cli codex"
 eq "$(agent_cli opencode)" "opencode" "agent_cli opencode"
 eq "$(agent_cli cursor-cli && echo y || echo n)" n "agent_cli rejects unknown"
 
+# state_dir: override wins; unwritable XDG falls back to TMPDIR; default is XDG-style
+sd_save=${REX_WAVE_STATE_DIR:-}; xdg_save=${XDG_STATE_HOME:-}
+REX_WAVE_STATE_DIR=/tmp/fake-state-sd; eq "$(state_dir)" "/tmp/fake-state-sd" "state_dir override wins"
+unset REX_WAVE_STATE_DIR
+XDG_STATE_HOME=/nonexistent-ro; TMPDIR=/tmp; eq "$(state_dir)" "/tmp" "state_dir falls back to TMPDIR"
+XDG_STATE_HOME=$RUN/selfcheck-state; eq "$(state_dir)" "$RUN/selfcheck-state/rex-wave" "state_dir default under XDG_STATE_HOME"
+[ -d "$RUN/selfcheck-state/rex-wave" ] && ok "state_dir creates its dir" || fail "state_dir creates its dir"
+unset XDG_STATE_HOME
+eq "$(state_dir)" "$HOME/.local/state/rex-wave" "state_dir default is ~/.local/state/rex-wave"
+REX_WAVE_STATE_DIR=$sd_save; XDG_STATE_HOME=$xdg_save
+
 # dirty_of: needs a real git repo at $WT_ROOT/T310 (as a worktree would be); skips if git missing
 if command -v git >/dev/null; then
   WT_ROOT=${WT_ROOT:-}; WT_ROOT_SAVE=$WT_ROOT

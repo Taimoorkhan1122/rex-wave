@@ -5,6 +5,15 @@
 
 die() { printf 'rex-wave: %s\n' "$*" >&2; exit 1; }
 
+# state_dir: durable base for run dirs; survives reboots (override with REX_WAVE_STATE_DIR).
+# ponytail: falls back to $TMPDIR when XDG dirs are unwritable; upgrade path: none needed —
+# the fallback is only for exotic sandboxes.
+state_dir() {
+  if [ -n "${REX_WAVE_STATE_DIR:-}" ]; then printf '%s\n' "$REX_WAVE_STATE_DIR"; return; fi
+  _sd=${XDG_STATE_HOME:-$HOME/.local/state}
+  if mkdir -p "$_sd/rex-wave" 2>/dev/null; then printf '%s/rex-wave\n' "$_sd"; else printf '%s\n' "${TMPDIR:-/tmp}"; fi
+}
+
 # load_env <run-dir>: source wave.env and set RUN
 load_env() {
   [ -f "$1/wave.env" ] || die "no wave.env in $1"

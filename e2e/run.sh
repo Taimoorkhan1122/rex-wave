@@ -47,7 +47,7 @@ new_run() {
     for l in "$@"; do printf '%s\n' "$l"; done
   } | awk -F= '!seen[$1]++{lines[NR]=$0; keys[$1]=NR; next} {lines[keys[$1]]=$0} END{for(i=1;i<=NR;i++) if(i in lines) print lines[i]}' > "$_m"
   sh "$root/scripts/init-wave.sh" "$_m" >/dev/null 2>&1 || { fail "init-wave (fixture $_label)"; printf 'x\n'; return 1; }
-  printf '%s/rex-wave-%s\n' "$tmp" "$_label"
+  printf '%s/rex-wave-%s\n' "${REX_WAVE_STATE_DIR:-$HOME/.local/state/rex-wave}" "$_label"
 }
 
 # full_briefs <run>: replace TODO in every brief stub so launch passes its gate
@@ -132,19 +132,60 @@ has 'VERDICT: APPROVE' "$(cat "$r/T1.review.md")" "reviewer: output captured"
 grep -q '^REVIEW EXIT' "$r/T1.review.md" && ok "reviewer: REVIEW EXIT appended" || fail "reviewer: REVIEW EXIT"
 rm -rf "$r" "$repo" "${repo}-worktrees"
 
-## 6 — C9: watch-review opens tab on done signal, records reviewed-head
+## 6 — C9: watch.sh opens tab on done signal, records reviewed-head, pings once
 repo=$(new_repo); r=$(new_run "$repo" s6)
 full_briefs "$r"
 sh "$root/scripts/launch.sh" "$r" T1 >/dev/null 2>&1
 sh "$root/scripts/launch.sh" "$r" T2 >/dev/null 2>&1
 fake_done "$r" T1
-MAX_WAIT=3 sh "$root/scripts/watch-review.sh" "$r" >/dev/null 2>&1 &
+MAX_WAIT=3 sh "$root/scripts/watch.sh" "$r" >"$tmp/s6-out.$$" 2>&1 &
 wpid=$!
 i=0; while [ $i -lt 40 ] && [ ! -f "$r/T1.reviewer.json" ]; do /bin/sleep 0.1; i=$((i+1)); done
-[ -f "$r/T1.reviewer.json" ] && ok "watch-review: opens tab on done signal" || fail "watch-review: opens tab on done signal"
-[ -f "$r/T1.reviewed-head" ] && ok "watch-review: records reviewed-head" || fail "watch-review: records reviewed-head"
+[ -f "$r/T1.reviewer.json" ] && ok "watch: opens tab on done signal" || fail "watch: opens tab on done signal"
+[ -f "$r/T1.reviewed-head" ] && ok "watch: records reviewed-head" || fail "watch: records reviewed-head"
+has 'T1 is reviewable' "$(cat "$tmp/s6-out.$$")" "watch: ping without --notify has no bell escapes"
+grep -q $'\a\|033\]9' "$tmp/s6-out.$$" && fail "watch: no bell escapes without --notify" || ok "watch: no bell escapes without --notify"
 kill "$wpid" 2>/dev/null; wait "$wpid" 2>/dev/null
+rm -rf "$r" "$repo" "${repo}-worktrees" "$tmp/s6-out.$$"
+
+## 6b — C9: watch.sh --notify fires bell+notification escapes and exits 0 when all tasks reviewable
+repo=$(new_repo); r=$(new_run "$repo" s6b)
+full_briefs "$r"
+sh "$root/scripts/launch.sh" "$r" T1 >/dev/null 2>&1
+sh "$root/scripts/launch.sh" "$r" T2 >/dev/null 2>&1
+fake_done "$r" T1
+fake_done "$r" T2
+MAX_WAIT=3 sh "$root/scripts/watch.sh" --notify "$r" >"$tmp/s6b-out.$$" 2>&1
+eq "$?" 0 "watch --notify: exits 0 when all tasks reviewable"
+n_esc=$(grep -c ']9;rex-wave' "$tmp/s6b-out.$$" || true)
+eq "$n_esc" 3 "watch --notify: bell+notification per task plus final summary"
+has 'T1 is reviewable' "$(cat "$tmp/s6b-out.$$")" "watch --notify: ping text present"
+has 'all .* tasks reviewable' "$(cat "$tmp/s6b-out.$$")" "watch --notify: final summary"
+rm -rf "$r" "$repo" "${repo}-worktrees" "$tmp/s6b-out.$$"
+
+## 6c — C9: watch.sh gives up after MAX_WAIT, names stragglers, exits 1
+repo=$(new_repo); r=$(new_run "$repo" s6c)
+full_briefs "$r"
+sh "$root/scripts/launch.sh" "$r" T1 >/dev/null 2>&1
+sh "$root/scripts/launch.sh" "$r" T2 >/dev/null 2>&1
+fake_done "$r" T1   # only T2 straggles
+out=$(MAX_WAIT=3 sh "$root/scripts/watch.sh" --notify "$r" 2>&1); rc=$?
+eq "$rc" 1 "watch timeout: exits 1 on stragglers"
+has 'never reviewable:.*T2' "$out" "watch timeout: names straggler T2"
+has ']9;rex-wave.*gave up' "$out" "watch timeout: --notify gave-up notification"
 rm -rf "$r" "$repo" "${repo}-worktrees"
+
+## 6d — reboot survival: run dir lives under the durable state dir, not TMPDIR
+repo=$(new_repo)
+r=$(REX_WAVE_STATE_DIR="$tmp/rwe2e-state.$$" new_run "$repo" s13)
+[ -f "$r/wave.env" ] && ok "state: run dir under REX_WAVE_STATE_DIR" || fail "state: run dir under REX_WAVE_STATE_DIR"
+case "$r" in "$tmp"/rwe2e-state.*) : ;; *) fail "state: run dir not in state dir" ;; esac
+full_briefs "$r"
+# simulated reboot: fresh process, only the state dir env carried over — status.sh must still work
+out=$(REX_WAVE_STATE_DIR="$tmp/rwe2e-state.$$" sh "$root/scripts/status.sh" "$r" 2>&1)
+has 'task .* commits' "$out" "state: status works after simulated reboot"
+sh "$root/scripts/finish.sh" "$r" >/dev/null 2>&1 || true
+rm -rf "$tmp/rwe2e-state.$$" "$repo" "${repo}-worktrees"
 
 ## 7 — C10: send-fix refusals and happy path
 repo=$(new_repo); r=$(new_run "$repo" s7)

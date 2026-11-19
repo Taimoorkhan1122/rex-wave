@@ -1,5 +1,6 @@
 #!/bin/sh
-# usage: init-wave.sh <manifest.env> — run inside a Rex terminal. Creates $TMPDIR/rex-wave-<LABEL>/ (wave.env, common.md, brief stubs) and one worktree per task.
+# usage: init-wave.sh <manifest.env> — run inside a Rex terminal. Creates <state>/rex-wave-<LABEL>/ (wave.env, common.md, brief stubs) and one worktree per task.
+# Run state lives in ~/.local/state/rex-wave/<LABEL> (override: REX_WAVE_STATE_DIR) so it survives reboots.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/lib.sh"
@@ -37,8 +38,7 @@ for t in $TASKS; do
   git -C "$REPO" show-ref --verify --quiet "refs/heads/fix/$t" && die "branch fix/$t already exists"
 done
 
-tmp=${TMPDIR:-/tmp}; tmp=${tmp%/}
-RUN="$tmp/rex-wave-$LABEL"
+RUN="$(state_dir)/rex-wave-$LABEL"
 [ -e "$RUN/wave.env" ] && die "run dir already initialised: $RUN"
 
 mkdir -p "$WT_ROOT" "$RUN" || die "cannot create $WT_ROOT or $RUN"

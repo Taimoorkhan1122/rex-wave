@@ -1,4 +1,5 @@
 #!/bin/sh
 # e2e stub: instant sleep so watcher MAX_WAIT loops finish in milliseconds.
 case ${1:-} in 30|1) exit 0 ;; esac
+case ${1:-} in ''|*[!0-9]*) exit 0 ;; esac  # non-numeric or empty: instant
 exit 0

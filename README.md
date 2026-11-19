@@ -26,7 +26,7 @@ flowchart LR
 1. **Init** — write a manifest (tasks, base branch, model allowlist, test commands). `init-wave.sh` creates one git worktree per task on `fix/<task>`, a run dir, and brief stubs.
 2. **Brief** — fill each task brief: goal, owned files, other tasks' files (so parallel work never collides).
 3. **Launch** — `launch.sh` opens a visible Rex tab per builder running commandcode with `--yolo` scoped to that worktree.
-4. **Review** — a background watcher opens an opencode reviewer tab per finished builder; verdicts land as `VERDICT: APPROVE` or `CHANGES REQUESTED`.
+4. **Review** — a background watcher (`watch.sh`, optionally `--notify` for bell + desktop pings) opens a reviewer tab per finished builder; verdicts land as `VERDICT: APPROVE` or `CHANGES REQUESTED`.
 5. **Fix** — paste review findings into a fix brief; `send-fix.sh` delivers it to the idle builder; a round-2 reviewer verifies each finding was fixed.
 6. **Merge** — you review and merge. The skill never does.
 7. **Teardown** — `finish.sh` removes worktrees and merged branches, closes tabs, deletes the run dir. Refuses anything not yet merged or uncommitted.
@@ -39,6 +39,8 @@ Running several agents on one checkout means merge conflicts, shared test runs, 
 - **file ownership in the brief** — overlapping files are named and forbidden per task
 - **a deterministic review gate** — verdicts are parsed from review output, not guessed
 - **fail-safe lifecycle** — every script refuses to overwrite, double-launch, or close a working agent; teardown only removes verified-merged work
+
+Run state (briefs, reviews, fix files, verdicts) lives in `~/.local/state/rex-wave/<LABEL>` (XDG-style; override with `REX_WAVE_STATE_DIR`), so a reboot or cleared temp dir does not lose a wave.
 
 ## Install
 
@@ -56,24 +58,22 @@ Scripts resolve their own directory, so any install location works. Requires: `s
 # from inside a Rex terminal tab
 echo "$REX_SESSION"                     # must be set
 
-# write a manifest from templates/wave.env.example, then:
-sh scripts/init-wave.sh "$TMPDIR/rex-wave-mylabel.env"
+# write a manifest from templates/wave.env.example (run state lives in
+# ~/.local/state/rex-wave/<LABEL>, override with REX_WAVE_STATE_DIR), then:
+sh scripts/init-wave.sh ~/.local/state/rex-wave/mylabel.env
 
 # fill briefs (Write tool), then per task:
-sh scripts/launch.sh "$TMPDIR/rex-wave-mylabel" T310
+sh scripts/launch.sh ~/.local/state/rex-wave/mylabel T310
 
-# background watcher opens reviewer tabs as builders finish:
-sh scripts/watch-review.sh "$TMPDIR/rex-wave-mylabel" &
-
-# get pinged in this terminal as each task becomes reviewable:
-sh scripts/watch-done.sh "$TMPDIR/rex-wave-mylabel" &
+# background watcher opens reviewer tabs as builders finish; --notify adds bell + desktop pings:
+sh scripts/watch.sh --notify ~/.local/state/rex-wave/mylabel &
 
 # check on everything:
-sh scripts/status.sh "$TMPDIR/rex-wave-mylabel"
+sh scripts/status.sh ~/.local/state/rex-wave/mylabel
 
 # after you merge:
-sh scripts/finish.sh "$TMPDIR/rex-wave-mylabel" --dry-run
-sh scripts/finish.sh "$TMPDIR/rex-wave-mylabel"
+sh scripts/finish.sh ~/.local/state/rex-wave/mylabel --dry-run
+sh scripts/finish.sh ~/.local/state/rex-wave/mylabel
 ```
 
 ## Agents and models

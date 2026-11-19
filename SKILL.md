@@ -10,7 +10,7 @@ Fan independent tasks out to coding agents. Each gets its own git worktree and a
 Builder and reviewer CLIs are chosen per wave in the manifest: `BUILDER_AGENT` / `REVIEW_AGENT` — `commandcode`, `claude` (Claude Code), `codex` (Codex CLI) or `opencode` (opencode). Profiles for each live in `lib.sh` (`builder_run`, `reviewer_run`); models are plain model ids the chosen CLI accepts.
 
 Scripts live in the `scripts/` directory next to this SKILL.md — use their absolute paths, whatever the install location is. Rex tabs run them outside your shell.
-Shorthand below: `S` = that scripts directory, `RUN` = `$TMPDIR/rex-wave-<label>`.
+Shorthand below: `S` = that scripts directory, `STATE` = the wave state dir (`${REX_WAVE_STATE_DIR:-~/.local/state/rex-wave}`, survives reboots), `RUN` = `$STATE/<label>`.
 
 ## When to use
 
@@ -24,33 +24,32 @@ Shorthand below: `S` = that scripts directory, `RUN` = `$TMPDIR/rex-wave-<label>
 2. Confirm with the user: task list, base branch, builder agent + model (defaults in Hard rules), and broad-permission (`--yolo`) approval for this wave.
 3. Name the session: `rex session rename "$REX_SESSION" <label>` (two to four words, e.g. `wave-login-fixes`).
 4. Pick tasks, e.g. from `tsk list --json`. One per independent chunk. Note which files each owns. Overlaps go into each brief as "owned by other tasks".
-5. Write the manifest with the Write tool to `$TMPDIR/rex-wave-<label>.env`, from `templates/wave.env.example`. Set `LABEL`, `REPO`, `BASE`, `TASKS`, `BUILDER_AGENT`/`REVIEW_AGENT` plus models, and the check and test commands.
+5. Write the manifest with the Write tool to `$STATE/<label>.env`, from `templates/wave.env.example`. Set `LABEL`, `REPO`, `BASE`, `TASKS`, `BUILDER_AGENT`/`REVIEW_AGENT` plus models, and the check and test commands.
 6. `sh S/init-wave.sh <manifest>`. Creates `RUN` with `wave.env`, a rendered `common.md`, brief stubs, and one worktree per task on branch `fix/<task>` from `BASE`. It refuses to overwrite anything.
 7. Write each brief to `RUN/<task>.md` from `templates/brief.md`, with the Write tool. Replace every `TODO`. Set the goal, finding IDs, owned files, and other tasks' files. `launch.sh` refuses while a TODO remains.
 
 ## Steps
 
 8. Launch each builder: `sh S/launch.sh RUN <task>`. It prints the tab number. Tell the user the tab numbers. Rex Remote Control is off by default, so you cannot switch their view.
-9. Start the review watcher in the background (Bash `run_in_background`): `sh S/watch-review.sh RUN`. It opens a reviewer tab per task once `REPORT-AGENT.md` exists and HEAD is past `BASE_SHA`. It exits when every task has a reviewer tab, or gives up after `MAX_WAIT` seconds (default 4h) naming the tasks whose builder never finished.
-10. Optionally start a done-pinger in the same background job style: `sh S/watch-done.sh RUN`. Run it from the block that wants to hear about completions — it prints `T1 is reviewable` plus a bell and a desktop-notification escape for each task the moment its condition (REPORT-AGENT.md + HEAD past BASE_SHA, same as watch-review) is met, then exits when all tasks are reviewable. `MAX_WAIT` (default 4h) bounds it.
-11. Stop at merge-ready. The user reviews branches `fix/<task>` and merges them.
+9. Start the watcher in the background (Bash `run_in_background`): `sh S/watch.sh --notify RUN`. It prints a ping per task the moment it is reviewable (`REPORT-AGENT.md` exists and HEAD is past `BASE_SHA`) and opens a reviewer tab for it. `--notify` adds a bell + desktop-notification per ping; omit it to suppress. It exits when every task has a reviewer tab, or gives up after `MAX_WAIT` seconds (default 4h) naming the tasks whose builder never finished.
+10. Stop at merge-ready. The user reviews branches `fix/<task>` and merges them.
 
 ## Fix round (only on CHANGES REQUESTED)
 
-12. Write `RUN/<task>.fix.md` from `templates/fix.md`. Paste only the findings to fix, each with file:line. Replace every TODO.
-13. `sh S/send-fix.sh RUN <task>`. It checks the builder is idle at its prompt, types "read <fix.md> and apply", presses Enter, and records the pre-fix HEAD. It refuses if the builder is busy.
-14. Start `sh S/watch-fix.sh RUN` in the background. It opens a round-2 reviewer once the builder has committed and appended `## Fix round 1`. Round 2 marks each round-1 finding fixed, not fixed or partial, then looks for new problems.
-15. One fix round per task. After round 2, decide with the user. Do not start a round 3.
+11. Write `RUN/<task>.fix.md` from `templates/fix.md`. Paste only the findings to fix, each with file:line. Replace every TODO.
+12. `sh S/send-fix.sh RUN <task>`. It checks the builder is idle at its prompt, types "read <fix.md> and apply", presses Enter, and records the pre-fix HEAD. It refuses if the builder is busy.
+13. Start `sh S/watch-fix.sh RUN` in the background. It opens a round-2 reviewer once the builder has committed and appended `## Fix round 1`. Round 2 marks each round-1 finding fixed, not fixed or partial, then looks for new problems.
+14. One fix round per task. After round 2, decide with the user. Do not start a round 3.
 
 ## Status and cleanup
 
-16. `sh S/status.sh RUN`: commits since base, dirty files (REPORT-AGENT.md excluded), report, fix, review and round-2 state, plus `stale` — `yes` means new commits landed after the reviewed HEAD, so the latest verdict no longer covers the branch tip. Merge only when `stale` is `-`.
-17. `sh S/close-idle.sh RUN [--dry-run]`: closes finished reviewer tabs, and builder tabs whose latest verdict is APPROVE with no fix pending, no stale review, and no uncommitted changes. A closed builder can resume by relaunching (`sh S/launch.sh RUN <task>` refuses, so resume in the tab with the agent's own resume flag, e.g. `claude --resume`, `codex resume`, `commandcode -r <task>`).
-18. Summarize for the user: per task, branch, commit count, verdict, and what needs their decision.
+15. `sh S/status.sh RUN`: commits since base, dirty files (REPORT-AGENT.md excluded), report, fix, review and round-2 state, plus `stale` — `yes` means new commits landed after the reviewed HEAD, so the latest verdict no longer covers the branch tip. Merge only when `stale` is `-`.
+16. `sh S/close-idle.sh RUN [--dry-run]`: closes finished reviewer tabs, and builder tabs whose latest verdict is APPROVE with no fix pending, no stale review, and no uncommitted changes. A closed builder can resume by relaunching (`sh S/launch.sh RUN <task>` refuses, so resume in the tab with the agent's own resume flag, e.g. `claude --resume`, `codex resume`, `commandcode -r <task>`).
+17. Summarize for the user: per task, branch, commit count, verdict, and what needs their decision.
 
 ## Teardown (after the user merged)
 
-19. Once the user says all `fix/<task>` branches are merged: `sh S/finish.sh RUN --dry-run` to preview, then `sh S/finish.sh RUN`. Per task it requires the branch merged into `BASE` and a clean worktree, then removes the worktree, deletes the branch (`-d`, so only merged branches die), closes the builder tab, and finally removes the run dir. Any BLOCKED task aborts the whole teardown before anything is removed — fix or decide with the user, then re-run. `--keep-run` keeps the briefs and reviews for reference.
+18. Once the user says all `fix/<task>` branches are merged: `sh S/finish.sh RUN --dry-run` to preview, then `sh S/finish.sh RUN`. Per task it requires the branch merged into `BASE` and a clean worktree, then removes the worktree, deletes the branch (`-d`, so only merged branches die), closes the builder tab, and finally removes the run dir. Any BLOCKED task aborts the whole teardown before anything is removed — fix or decide with the user, then re-run. `--keep-run` keeps the briefs and reviews for reference.
 
 ## Gotchas
 
