@@ -43,8 +43,12 @@ Shorthand below: `S` = that scripts directory, `RUN` = `$TMPDIR/rex-wave-<label>
 ## Status and cleanup
 
 16. `sh S/status.sh RUN`: commits since base, dirty files (REPORT-AGENT.md excluded), report, fix, review and round-2 state, plus `stale` — `yes` means new commits landed after the reviewed HEAD, so the latest verdict no longer covers the branch tip. Merge only when `stale` is `-`.
-17. `sh S/close-idle.sh RUN [--dry-run]`: closes finished reviewer tabs, and builder tabs whose latest verdict is APPROVE with no fix pending and no stale review. A closed builder can resume with `commandcode -r <task>`.
+17. `sh S/close-idle.sh RUN [--dry-run]`: closes finished reviewer tabs, and builder tabs whose latest verdict is APPROVE with no fix pending, no stale review, and no uncommitted changes. A closed builder can resume with `commandcode -r <task>`.
 18. Summarize for the user: per task, branch, commit count, verdict, and what needs their decision.
+
+## Teardown (after the user merged)
+
+19. Once the user says all `fix/<task>` branches are merged: `sh S/finish.sh RUN --dry-run` to preview, then `sh S/finish.sh RUN`. Per task it requires the branch merged into `BASE` and a clean worktree, then removes the worktree, deletes the branch (`-d`, so only merged branches die), closes the builder tab, and finally removes the run dir. Any BLOCKED task aborts the whole teardown before anything is removed — fix or decide with the user, then re-run. `--keep-run` keeps the briefs and reviews for reference.
 
 ## Gotchas
 
