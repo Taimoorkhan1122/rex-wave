@@ -20,7 +20,9 @@ ln "$here/stubs/agent" "$ST/bin/codex";      ln "$here/stubs/agent" "$ST/bin/ope
 ln "$here/stubs/rex" "$ST/bin/rex";          ln "$here/stubs/sleep" "$ST/bin/sleep"
 PATH="$ST/bin:$PATH"
 export REX_STUB_STATE=$ST
-REX_SESSION=sess-e2e
+export REX_SESSION=sess-e2e
+# CI runners have no git identity; fixtures commit
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 
 # new_repo: a git repo with one commit; echoes its path
 new_repo() {
